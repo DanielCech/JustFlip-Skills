@@ -17,6 +17,15 @@ FIELD_ALIASES = {
     "a_audio": ["a_audio", "answer_audio", "back_audio"],
     "a_pdf": ["a_pdf", "answer_pdf", "back_pdf"],
     "deck": ["deck", "deck_name", "category", "section", "group"],
+    "kind": ["kind", "type", "card_type"],
+    "progress": ["progress", "completion"],
+}
+
+KIND_ALIASES = {
+    "standard": "standard",
+    "progresstracker": "progressTracker",
+    "progress_tracker": "progressTracker",
+    "tracker": "progressTracker",
 }
 
 DELIMITER_MAP = {
@@ -55,6 +64,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--a-pdf-col", help="Answer PDF filename column name")
     parser.add_argument("--deck-q-lang", help="Default question language tag")
     parser.add_argument("--deck-a-lang", help="Default answer language tag")
+    parser.add_argument("--kind-col", help="Card kind column (standard / progressTracker)")
+    parser.add_argument("--progress-col", help="Tracker starting progress column (0-100)")
     return parser.parse_args()
 
 
@@ -101,8 +112,8 @@ def clean(value: Optional[str]) -> Optional[str]:
 def row_to_card(
     row: Dict[str, str],
     field_map: Dict[str, Optional[str]],
-) -> Dict[str, str]:
-    card = {}
+) -> Dict[str, object]:
+    card: Dict[str, object] = {}
     for field_name in [
         "q",
         "a",
@@ -121,7 +132,38 @@ def row_to_card(
         if value is not None:
             card[field_name] = value
 
+    apply_kind_and_progress(card, row, field_map)
     return card
+
+
+def apply_kind_and_progress(
+    card: Dict[str, object],
+    row: Dict[str, str],
+    field_map: Dict[str, Optional[str]],
+) -> None:
+    """Progress trackers: `kind` is emitted only when it is a tracker, and
+    `progress` (0-100) only alongside it — the app ignores it otherwise."""
+    kind_column = field_map.get("kind")
+    if kind_column:
+        raw_kind = clean(row.get(kind_column))
+        if raw_kind:
+            kind = KIND_ALIASES.get(normalize(raw_kind))
+            if kind is None:
+                raise SystemExit(f"Unknown card kind: {raw_kind!r}")
+            if kind == "progressTracker":
+                card["kind"] = kind
+
+    progress_column = field_map.get("progress")
+    if progress_column and card.get("kind") == "progressTracker":
+        raw_progress = clean(row.get(progress_column))
+        if raw_progress is not None:
+            try:
+                progress = float(raw_progress.replace("%", ""))
+            except ValueError:
+                raise SystemExit(f"Invalid tracker progress: {raw_progress!r}")
+            if not 0 <= progress <= 100:
+                raise SystemExit(f"Tracker progress out of range 0-100: {raw_progress!r}")
+            card["progress"] = progress
 
 
 def main() -> None:
@@ -146,6 +188,8 @@ def main() -> None:
             "a_image": resolve_column("a_image", headers, args.a_image_col),
             "a_audio": resolve_column("a_audio", headers, args.a_audio_col),
             "a_pdf": resolve_column("a_pdf", headers, args.a_pdf_col),
+            "kind": resolve_column("kind", headers, args.kind_col),
+            "progress": resolve_column("progress", headers, args.progress_col),
         }
 
         if field_map["q"] is None and field_map["a"] is None:
@@ -153,7 +197,7 @@ def main() -> None:
 
         deck_column = resolve_column("deck", headers, args.deck_col) if args.deck_col else None
 
-        cards_by_deck: Dict[str, List[Dict[str, str]]] = {}
+        cards_by_deck: Dict[str, List[Dict[str, object]]] = {}
         for row in reader:
             if deck_column:
                 deck_name = clean(row.get(deck_column)) or "Imported"

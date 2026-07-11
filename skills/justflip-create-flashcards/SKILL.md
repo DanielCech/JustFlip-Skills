@@ -31,7 +31,8 @@ Read [reference.md](reference.md) before generating the final file so the JSON k
    - Media attached: create or update a `.flashcards.zip` with `content.json` plus root-level `images/`, `audio/`, and `pdfs/` folders.
 8. Always emit top-level `format: "flashcard-content"`.
 9. Default to `version: "1"` for the public content-creation format used by the current app spec and tests.
-10. Do not generate UUID fields, timestamps, progress payloads, or the full exchange / backup schema unless the user explicitly asks for the backup format.
+10. Do not generate UUID fields, timestamps, SRS/review-history payloads, or the full exchange / backup schema unless the user explicitly asks for the backup format. (The per-card `progress` field on progress trackers is fine — see below.)
+11. **Progress trackers are a JustFlip Pro feature — never emit them by default.** Emit cards with `"kind": "progressTracker"` (where `q` is the tracker name, `a` an optional one-line description, `progress` the starting completion 0–100; omit for 0) only after explicit confirmation: if the user directly asks for progress/practice tracking, proceed; if the material merely suggests it (a setlist, exercise plan, technique checklist), ask first and mention that trackers require JustFlip Pro, offering plain flashcards as the alternative. When a delivered deck contains trackers, note in the summary that managing them in the app requires JustFlip Pro. Trackers never enter review sessions; keep them plain text (no media, TTS, LaTeX, or code). Mixing flashcards and trackers in one deck is fine. Details in [reference.md](reference.md).
 
 ## Card quality rules
 
@@ -41,7 +42,7 @@ Read [reference.md](reference.md) before generating the final file so the JSON k
 - Skip low-value trivia, duplicates, and filler.
 - Do not invent facts not supported by the source.
 - Use simple Markdown only.
-- Use inline code or fenced code blocks for technical snippets when it improves readability.
+- Use inline code or fenced code blocks for technical snippets when it improves readability. Always tag fenced blocks with the language so the app can syntax-highlight them.
 - Keep answers concise enough to read comfortably on mobile.
 - For music terminology, use `♯` and `♭`, not `#` or `b`.
 
@@ -55,6 +56,15 @@ The app renders math directly from LaTeX in card text.
 - Block math with spoken text: `{<spoken form>}` immediately after the closing `$$`
 
 Do not generate math images.
+
+## Code blocks & syntax highlighting
+
+The app syntax-highlights fenced code blocks natively, driven by the fence language tag.
+
+- Always put the language tag right after the opening fence (```` ```swift ````).
+- Supported tags and aliases are listed in [reference.md](reference.md). Unknown or missing tags safely fall back to plain monospace — prefer the real language name over omitting the tag.
+- Keep code lines under ~30 characters so blocks fit a phone screen without wrapping.
+- Never embed pre-classified token spans (`language`/`spans` JSON) in `q`/`a` text. The `flashcard-content` schema carries plain Markdown only; the app tokenizes from the language tag.
 
 ## Spoken text for TTS
 
@@ -138,6 +148,33 @@ output.flashcards.zip
     {
       "q": "What is `@State` used for?",
       "a": "Stores local mutable view state."
+    },
+    {
+      "q": "How do you declare a two-way binding to a `@State` property?",
+      "a": "Prefix it with `$`:\n\n```swift\nToggle(\"On\", isOn: $isOn)\n```"
+    }
+  ]
+}
+```
+
+### Progress trackers (practice tracking)
+
+```json
+{
+  "format": "flashcard-content",
+  "version": "1",
+  "interest": "Bass",
+  "deck": "Songs",
+  "cards": [
+    {
+      "q": "Blackbird",
+      "a": "Fingerpicking, verse tempo 90",
+      "kind": "progressTracker",
+      "progress": 60
+    },
+    {
+      "q": "Come Together",
+      "kind": "progressTracker"
     }
   ]
 }
