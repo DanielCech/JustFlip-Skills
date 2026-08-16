@@ -51,5 +51,6 @@ Create a bilingual English-German vocabulary deck for everyday travel phrases. P
 
 - `SKILL.md` — agent instructions
 - `reference.md` — format details
+- `interest_icons.md` — curated SF Symbols available for interest icons
 - `scripts/csv_to_flashcard.py` — delimited text → content JSON
 - `scripts/build_flashcard_package.py` — validate/package JSON into `.flashcards` or `.flashcards.zip`

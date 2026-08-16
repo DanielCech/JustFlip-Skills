@@ -44,6 +44,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("input", help="Source CSV/TSV/delimited file")
     parser.add_argument("output", help="Output JSON or .flashcards path")
     parser.add_argument("--interest", required=True, help="Interest name")
+    parser.add_argument(
+        "--interest-icon",
+        help="SF Symbol name for the interest (see interest_icons.md)",
+    )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--deck", help="Single deck name")
     group.add_argument("--deck-col", help="Column used to group rows into decks")
@@ -220,6 +224,7 @@ def main() -> None:
             "format": "flashcard-content",
             "version": "1",
             "interest": args.interest,
+            **({"interest_icon": args.interest_icon} if args.interest_icon else {}),
             "decks": [
                 {
                     "deck": deck_name,
@@ -236,6 +241,7 @@ def main() -> None:
             "format": "flashcard-content",
             "version": "1",
             "interest": args.interest,
+            **({"interest_icon": args.interest_icon} if args.interest_icon else {}),
             "deck": deck_name,
             **({"deck_q_lang": args.deck_q_lang} if args.deck_q_lang else {}),
             **({"deck_a_lang": args.deck_a_lang} if args.deck_a_lang else {}),

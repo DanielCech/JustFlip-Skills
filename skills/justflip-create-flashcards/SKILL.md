@@ -5,7 +5,7 @@ description: Create or modify importable JustFlip decks from CSV, TSV, pipe-deli
 
 Create flashcard sets for the **JustFlip** app import format.
 
-Read [reference.md](reference.md) before generating the final file so the JSON keys, version, and ZIP layout match the app contract.
+Read [reference.md](reference.md) and [interest_icons.md](interest_icons.md) before generating the final file so the JSON keys, version, icon choice, and ZIP layout match the app contract.
 
 ## Workflow
 
@@ -19,20 +19,26 @@ Read [reference.md](reference.md) before generating the final file so the JSON k
 4. Decide deck structure:
    - Use a single deck when the source is one coherent topic.
    - Use multi-deck JSON when the source naturally splits into sections, chapters, or categories.
-5. Set language tags:
+5. Choose an interest icon:
+   - For every newly created deck, proactively suggest an interest icon based on the subject. Give one primary suggestion and, when useful, up to two alternatives from [interest_icons.md].
+   - Put the selected SF Symbol name in the top-level `interest_icon` field. Use the exact symbol name, not the display label or a Unicode emoji.
+   - If the user does not choose among the suggestions, use the primary suggestion and mention it in the result summary. Do not use the generic `square.stack.3d.up` unless the subject is genuinely generic or no better match exists.
+   - For an existing deck, preserve its current icon unless the user asks to change it. On re-import, JustFlip preserves an existing user-selected interest icon.
+   - The catalog is the set currently shown by the app’s Create/Edit Interest picker; do not invent SF Symbol names outside it.
+6. Set language tags:
    - Always include `q_lang` and `a_lang` on every card when the languages vary card-by-card.
    - Otherwise include `deck_q_lang` and `deck_a_lang` at deck level.
    - Use BCP 47 codes such as `en`, `cs`, `es`, `de`.
-6. Add spoken variants:
+7. Add spoken variants:
    - Use `{spoken form}` after unusual pronunciation, formulas, acronyms, and images.
    - Be generous because JustFlip supports audio learning and TTS.
-7. Package the result:
+8. Package the result:
    - JSON only: create or update a `.flashcards` file.
    - Media attached: create or update a `.flashcards.zip` with `content.json` plus root-level `images/`, `audio/`, and `pdfs/` folders.
-8. Always emit top-level `format: "flashcard-content"`.
-9. Default to `version: "1"` for the public content-creation format used by the current app spec and tests.
-10. Do not generate UUID fields, timestamps, SRS/review-history payloads, or the full exchange / backup schema unless the user explicitly asks for the backup format. (The per-card `progress` field on progress trackers is fine — see below.)
-11. **Progress trackers are a JustFlip Pro feature — never emit them by default.** Emit cards with `"kind": "progressTracker"` (where `q` is the tracker name, `a` an optional one-line description, `progress` the starting completion 0–100; omit for 0) only after explicit confirmation: if the user directly asks for progress/practice tracking, proceed; if the material merely suggests it (a setlist, exercise plan, technique checklist), ask first and mention that trackers require JustFlip Pro, offering plain flashcards as the alternative. When a delivered deck contains trackers, note in the summary that managing them in the app requires JustFlip Pro. Trackers never enter review sessions; keep them plain text (no media, TTS, LaTeX, or code). Mixing flashcards and trackers in one deck is fine. Details in [reference.md](reference.md).
+9. Always emit top-level `format: "flashcard-content"`.
+10. Default to `version: "1"` for the public content-creation format used by the current app spec and tests.
+11. Do not generate UUID fields, timestamps, SRS/review-history payloads, or the full exchange / backup schema unless the user explicitly asks for the backup format. (The per-card `progress` field on progress trackers is fine — see below.)
+12. **Progress trackers are a JustFlip Pro feature — never emit them by default.** Emit cards with `"kind": "progressTracker"` (where `q` is the tracker name, `a` an optional one-line description, `progress` the starting completion 0–100; omit for 0) only after explicit confirmation: if the user directly asks for progress/practice tracking, proceed; if the material merely suggests it (a setlist, exercise plan, technique checklist), ask first and mention that trackers require JustFlip Pro, offering plain flashcards as the alternative. When a delivered deck contains trackers, note in the summary that managing them in the app requires JustFlip Pro. Trackers never enter review sessions; keep them plain text (no media, TTS, LaTeX, or code). Mixing flashcards and trackers in one deck is fine. Details in [reference.md](reference.md).
 
 ## Card quality rules
 
@@ -87,6 +93,7 @@ For single-deck content:
   "format": "flashcard-content",
   "version": "1",
   "interest": "Interest Name",
+  "interest_icon": "brain.head.profile",
   "deck": "Deck Name",
   "deck_q_lang": "en",
   "deck_a_lang": "cs",

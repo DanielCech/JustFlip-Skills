@@ -16,6 +16,7 @@ The app also accepts `.flashcard` / `.flashcard.zip` naming for content import, 
   "format": "flashcard-content",
   "version": "1",
   "interest": "Interest Name",
+  "interest_icon": "brain.head.profile",
   "deck": "Deck Name",
   "deck_q_lang": "en",
   "deck_a_lang": "cs",
@@ -27,6 +28,14 @@ The app also accepts `.flashcard` / `.flashcard.zip` naming for content import, 
   ]
 }
 ```
+
+### Interest icon
+
+`interest_icon` is an optional top-level SF Symbol name for the interest. It is
+the same value selected in the app’s Create Interest / Edit Interest picker.
+Choose it from [interest_icons.md](interest_icons.md), using the exact symbol
+name. The app applies it only when the imported interest has no icon yet, so a
+user’s existing choice is preserved on re-import.
 
 ## Multi-deck JSON
 
