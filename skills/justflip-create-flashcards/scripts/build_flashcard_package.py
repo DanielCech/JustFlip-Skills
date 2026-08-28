@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -65,6 +66,46 @@ def validate_media_name(filename: str) -> None:
         raise SystemExit(f"Media filename must not include directories: {filename}")
 
 
+def unhosted_spoken_hints(text: str) -> List[str]:
+    """Brace groups that will be drawn on the card instead of steering TTS.
+
+    The app consumes a `{spoken}` hint only after inline math `$…$`, an image
+    `![id]`, a block-math closing fence `$$`, or bracketed text `[visible]`. So
+    strip everything it legitimately consumes — including code, which is never
+    inline-parsed, and math spans, whose LaTeX has braces of its own — and any
+    group still standing is a bug the reader will see.
+    """
+    stripped = re.sub(r"```.*?```", " ", text, flags=re.S)
+    stripped = re.sub(r"`[^`\n]*`", " ", stripped)
+    stripped = re.sub(r"\$\$.*?\$\$(\{[^}\n]*\})?", " ", stripped, flags=re.S)
+    stripped = re.sub(r"\$[^$\n]+\$(\{[^}\n]*\})?", " ", stripped)
+    stripped = re.sub(r"!\[[^\]\n]*\](\{[^}\n]*\})?", " ", stripped)
+    stripped = re.sub(r"\[[^\]\n]*\]\{[^}\n]*\}", " ", stripped)
+    return re.findall(r"\{[^}\n]*\}", stripped)
+
+
+def validate_markup(card: Dict, index: int, deck_name: str) -> None:
+    for side in ("q", "a"):
+        text = card.get(side)
+        if not isinstance(text, str):
+            continue
+
+        for group in unhosted_spoken_hints(text):
+            raise SystemExit(
+                f"Card {index} in deck '{deck_name}' ({side}): spoken hint {group} has no "
+                f"host and would render literally. Use [visible]{{spoken}}, or drop it."
+            )
+
+        fences = [
+            line for line in text.split("\n")
+            if line.strip().startswith(":::")
+        ]
+        if len(fences) % 2:
+            raise SystemExit(
+                f"Card {index} in deck '{deck_name}' ({side}): unbalanced ::: display block."
+            )
+
+
 def collect_media(payload: Dict) -> Dict[str, Set[str]]:
     media_refs = {"images": set(), "audio": set(), "pdfs": set()}
     for deck in get_decks(payload):
@@ -81,6 +122,8 @@ def collect_media(payload: Dict) -> Dict[str, Set[str]]:
                 raise SystemExit(
                     f"Card {index} in deck '{deck['deck']}' must include 'q' or 'a'."
                 )
+
+            validate_markup(card, index, deck["deck"])
 
             for field_name, media_folder in MEDIA_FIELDS.items():
                 value = card.get(field_name)

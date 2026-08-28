@@ -30,15 +30,28 @@ Read [reference.md](reference.md) and [interest_icons.md](interest_icons.md) bef
    - Otherwise include `deck_q_lang` and `deck_a_lang` at deck level.
    - Use BCP 47 codes such as `en`, `cs`, `es`, `de`.
 7. Add spoken variants:
-   - Use `{spoken form}` after unusual pronunciation, formulas, acronyms, and images.
-   - Be generous because JustFlip supports audio learning and TTS.
-8. Package the result:
+   - A `{spoken form}` hint only works when it **directly follows a host**: inline
+     math `$…${…}`, an image `![id]{…}`, a block-math closing fence `$${…}`, or
+     bracketed text `[visible]{spoken}`. After plain text or `*italic*` the braces
+     are printed on the card — a real bug, so never write `debt{det}`.
+   - `[visible]{spoken}` is the general-purpose form and works inside emphasis:
+     `*[F♯ major]{F sharp major}*`.
+   - Add hints for what TTS gets wrong — `♯`/`♭`, formulas, acronyms, romanised
+     syllables, degree lists — not to repeat text that already reads correctly.
+8. Choose a display for glyph-only sides:
+   - When a whole side **is** a character, symbol or single short word to be
+     recognised — kana, kanji, an alphabet, a chemical symbol, an IPA sign, a note
+     name — wrap it in a `::: hero` block so it renders large and centred instead
+     of small in the corner of an empty card.
+   - `::: center` is the same centring at body size.
+   - Never for a sentence, a definition or anything with more than a few words.
+9. Package the result:
    - JSON only: create or update a `.flashcards` file.
    - Media attached: create or update a `.flashcards.zip` with `content.json` plus root-level `images/`, `audio/`, and `pdfs/` folders.
-9. Always emit top-level `format: "flashcard-content"`.
-10. Default to `version: "1"` for the public content-creation format used by the current app spec and tests.
-11. Do not generate UUID fields, timestamps, SRS/review-history payloads, or the full exchange / backup schema unless the user explicitly asks for the backup format. (The per-card `progress` field on progress trackers is fine — see below.)
-12. **Progress trackers are a JustFlip Pro feature — never emit them by default.** Emit cards with `"kind": "progressTracker"` (where `q` is the tracker name, `a` an optional one-line description, `progress` the starting completion 0–100; omit for 0) only after explicit confirmation: if the user directly asks for progress/practice tracking, proceed; if the material merely suggests it (a setlist, exercise plan, technique checklist), ask first and mention that trackers require JustFlip Pro, offering plain flashcards as the alternative. When a delivered deck contains trackers, note in the summary that managing them in the app requires JustFlip Pro. Trackers never enter review sessions; keep them plain text (no media, TTS, LaTeX, or code). Mixing flashcards and trackers in one deck is fine. Details in [reference.md](reference.md).
+10. Always emit top-level `format: "flashcard-content"`.
+11. Default to `version: "1"` for the public content-creation format used by the current app spec and tests.
+12. Do not generate UUID fields, timestamps, SRS/review-history payloads, or the full exchange / backup schema unless the user explicitly asks for the backup format. (The per-card `progress` field on progress trackers is fine — see below.)
+13. **Progress trackers are a JustFlip Pro feature — never emit them by default.** Emit cards with `"kind": "progressTracker"` (where `q` is the tracker name, `a` an optional one-line description, `progress` the starting completion 0–100; omit for 0) only after explicit confirmation: if the user directly asks for progress/practice tracking, proceed; if the material merely suggests it (a setlist, exercise plan, technique checklist), ask first and mention that trackers require JustFlip Pro, offering plain flashcards as the alternative. When a delivered deck contains trackers, note in the summary that managing them in the app requires JustFlip Pro. Trackers never enter review sessions; keep them plain text (no media, TTS, LaTeX, or code). Mixing flashcards and trackers in one deck is fine. Details in [reference.md](reference.md).
 
 ## Card quality rules
 
@@ -72,17 +85,52 @@ The app syntax-highlights fenced code blocks natively, driven by the fence langu
 - Keep code lines under ~30 characters so blocks fit a phone screen without wrapping.
 - Never embed pre-classified token spans (`language`/`spans` JSON) in `q`/`a` text. The `flashcard-content` schema carries plain Markdown only; the app tokenizes from the language tag.
 
-## Spoken text for TTS
+## Display blocks
 
-Use `{...}` after eligible inline content to override how TTS reads it.
+A block fenced with `:::` is presented differently from body text. Content inside
+parses normally, so hints, emphasis and math still work.
 
 ```markdown
-$c^2${c squared}
-[CRDT]{see-ar-dee-tee}
-![image]{a red apple}
+::: hero
+あ
+:::
 ```
 
-For vocabulary cards, add `{spoken form}` for non-obvious pronunciation when useful.
+| Style | Use for |
+| --- | --- |
+| `hero` | The side **is** the thing being recognised: a kana, kanji, letter, chemical symbol, IPA sign, note name, single short word. Renders very large and centred. |
+| `center` | Body size, centred. |
+
+Rules:
+
+- One subject per block. A hero block holding a sentence defeats the purpose.
+- Put explanatory notes **outside** the block so they stay body text:
+
+```markdown
+::: hero
+[shi]{shee}
+:::
+
+Not *si* — the whole s-row shifts here.
+```
+
+- An unknown style name renders as an ordinary paragraph, so a deck stays readable
+  on older app versions.
+
+## Spoken text for TTS
+
+A `{...}` hint overrides how TTS reads the content it follows — but only after one
+of four hosts. Anywhere else the braces are drawn on the card.
+
+```markdown
+$c^2${c squared}          ✅ inline math
+![image]{a red apple}     ✅ image
+[CRDT]{see-ar-dee-tee}    ✅ bracketed text — the general-purpose form
+*[F♯]{F sharp}*           ✅ nests inside emphasis
+colonel{kər-nəl}          ❌ no host — renders as "colonel{kər-nəl}"
+```
+
+For vocabulary cards, bracket the word: `[debt]{det}`.
 
 ## Output contract
 
@@ -131,11 +179,11 @@ output.flashcards.zip
   "cards": [
     {
       "q": "image",
-      "a": "obrázek, image{imidž} člověka"
+      "a": "obrázek, [image]{imidž} člověka"
     },
     {
       "q": "debt",
-      "a": "dluh, debt{det}"
+      "a": "dluh, [debt]{det}"
     }
   ]
 }

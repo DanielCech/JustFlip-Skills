@@ -174,13 +174,58 @@ Rules:
 
 ## Spoken text for TTS
 
-Use `{...}` after eligible inline content to override speech output.
+A `{...}` group overrides speech output for the content it follows — but the parser
+consumes it after **exactly four hosts**. Anywhere else the braces fall through and
+are drawn on the card.
+
+| Host | Example |
+| --- | --- |
+| inline math | `$c^2${c squared}` |
+| image | `![image]{a red apple}` |
+| block-math closing fence | `$${V equals S p times v}` |
+| bracketed text | `[CRDT]{see-ar-dee-tee}` |
+
+`[visible]{spoken}` is the general-purpose form: it takes any text, and nests inside
+emphasis because emphasis is a style toggle rather than a wrapper —
+`*[F♯ major]{F sharp major}*` renders italic and speaks correctly.
 
 ```text
-$c^2${c squared}
-[CRDT]{see-ar-dee-tee}
-![image]{a red apple}
+[debt]{det}               ✅
+*[shi]{shee}*             ✅
+debt{det}                 ❌ renders as "debt{det}"
+*B minor*{B minor}        ❌ renders as "B minor{B minor}"
 ```
+
+Braces inside fenced or inline code are safe — code is never inline-parsed, so a
+Kotlin `"${name.length}"` template needs no escaping.
+
+Reserve hints for what TTS actually gets wrong: `♯` and `♭`, formulas, acronyms,
+romanised syllables, and degree lists like `[1 – ♭3 – 5]{one, minor third, perfect
+fifth}`. A hint that repeats already-correct text is noise.
+
+## Display blocks
+
+A `:::` fence sets how a block is presented. Content inside parses with the normal
+inline rules.
+
+```text
+::: hero
+あ
+:::
+```
+
+| Style | Rendering | Use for |
+| --- | --- | --- |
+| `hero` | ~4× body size, centred | A side that **is** a glyph, symbol or single short word being recognised |
+| `center` | body size, centred | Short answers, captions |
+
+- The style name is case-insensitive; `centre` is accepted for `center`.
+- Blank lines inside a block split it into several paragraphs, all keeping the style.
+- Notes belong **outside** the block so they stay body text.
+- An unrecognised style renders as an ordinary paragraph, and an unterminated block
+  keeps its content — so neither loses the author's text.
+- Presentation only: `plainText`, search, export and the speech projection are
+  identical with or without a display block.
 
 ## ZIP layout
 
