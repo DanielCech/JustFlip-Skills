@@ -3,6 +3,7 @@
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -64,6 +65,11 @@ def get_decks(payload: Dict) -> List[Dict]:
 def validate_media_name(filename: str) -> None:
     if "/" in filename or "\\" in filename:
         raise SystemExit(f"Media filename must not include directories: {filename}")
+    if filename.lower().endswith(".svg"):
+        raise SystemExit(
+            f"The app cannot display SVG ({filename}). Convert it: scripts/svg_to_png.sh {filename} "
+            f"{filename[:-4]}.png"
+        )
 
 
 def unhosted_spoken_hints(text: str) -> List[str]:
@@ -84,11 +90,121 @@ def unhosted_spoken_hints(text: str) -> List[str]:
     return re.findall(r"\{[^}\n]*\}", stripped)
 
 
+MERMAID_FENCE = re.compile(r"```mermaid[ \t]*\n(.*?)\n[ \t]*```", re.S)
+MERMAID_HEADERS = ("graph ", "graph;", "flowchart ", "sequencediagram", "statediagram", "classdiagram", "erdiagram")
+MERMAID_FORBIDDEN = {
+    "style ": "colours break dark mode and themes",
+    "classdef ": "colours break dark mode and themes",
+    "linkstyle ": "colours break dark mode and themes",
+    "%%{": "init directives are ignored",
+    "click ": "interactions are unsupported",
+    "subgraph": "subgraphs waste card space",
+}
+MERMAID_MAX_LINES = 60
+MERMAID_MAX_CHARS = 2000
+# Card-size budgets from SKILL.md → Diagrams (≈ 330 × 250 pt face, ≥ 10 pt labels).
+MERMAID_MAX_FLOW_NODES = 6
+MERMAID_MAX_PARTICIPANTS = 3
+MERMAID_MAX_MESSAGES = 4
+MERMAID_MAX_STATES = 4
+MERMAID_MAX_CLASSES = 3
+MERMAID_MAX_LABEL_CHARS = 16
+
+
+def warn(message: str) -> None:
+    print(f"warning: {message}", file=sys.stderr)
+
+
+def mermaid_size_warnings(source: str) -> List[str]:
+    """Heuristic card-size check. Warnings only: the counting is approximate."""
+    lines = [line.strip() for line in source.split("\n") if line.strip() and not line.strip().startswith("%%")]
+    header = lines[0].lower()
+    body = lines[1:]
+    notes = []
+
+    labels = re.findall(r"[\[\(\{>]+([^\[\]\(\)\{\}|]+)[\]\)\}]+|\|([^|]+)\|", "\n".join(body))
+    long_labels = [text for pair in labels for text in pair if len(text.strip()) > MERMAID_MAX_LABEL_CHARS]
+    if long_labels:
+        notes.append(f"labels longer than {MERMAID_MAX_LABEL_CHARS} characters: {long_labels[:3]}")
+
+    if header.startswith(("graph", "flowchart")):
+        nodes = set()
+        for line in body:
+            # Drop edge labels and node text, then read the id in front of every arrow.
+            bare = re.sub(r"\|[^|]*\|", " ", line)
+            bare = re.sub(r"[\[\(\{>][^\]\)\}]*[\]\)\}]+", " ", bare)
+            for part in re.split(r"-{2,}>|-{3,}|-\.+->|={2,}>|--[xo]|&", bare):
+                match = re.match(r"\s*([A-Za-z0-9_]+)", part)
+                if match:
+                    nodes.add(match.group(1))
+        if len(nodes) > MERMAID_MAX_FLOW_NODES:
+            notes.append(f"{len(nodes)} flowchart nodes (card limit {MERMAID_MAX_FLOW_NODES})")
+    elif header.startswith("sequencediagram"):
+        participants = set()
+        messages = 0
+        for line in body:
+            match = re.match(r"([A-Za-z0-9_ ]+?)\s*-{1,2}>{1,2}[+-]?\s*([A-Za-z0-9_ ]+?)\s*:", line)
+            if match:
+                messages += 1
+                participants.update(part.strip() for part in match.groups())
+        if len(participants) > MERMAID_MAX_PARTICIPANTS:
+            notes.append(f"{len(participants)} participants (card limit {MERMAID_MAX_PARTICIPANTS})")
+        if messages > MERMAID_MAX_MESSAGES:
+            notes.append(f"{messages} messages (card limit {MERMAID_MAX_MESSAGES})")
+    elif header.startswith("statediagram"):
+        states = {name for line in body for name in re.findall(r"([A-Za-z0-9_]+)", line.split(":")[0]) if name}
+        if len(states) > MERMAID_MAX_STATES:
+            notes.append(f"{len(states)} states (card limit {MERMAID_MAX_STATES})")
+    elif header.startswith("classdiagram"):
+        classes = {name for line in body for name in re.findall(r"\b([A-Z][A-Za-z0-9_]*)\b", line.split(":")[0])}
+        if len(classes) > MERMAID_MAX_CLASSES:
+            notes.append(f"{len(classes)} classes (card limit {MERMAID_MAX_CLASSES})")
+    elif header.startswith("erdiagram"):
+        notes.append("ER diagrams lay out too wide for a card — prefer a flowchart")
+    return notes
+
+
+def validate_mermaid(text: str, card: Dict, side: str, where: str) -> None:
+    diagrams = MERMAID_FENCE.findall(text)
+    if not diagrams and "```mermaid" not in text:
+        return
+    if len(diagrams) != 1:
+        raise SystemExit(f"{where}: a side may hold exactly one closed ```mermaid block.")
+    if MERMAID_FENCE.sub("", text).strip():
+        raise SystemExit(
+            f"{where}: a diagram side must contain only the diagram — move the other text to the other side."
+        )
+    if card.get(f"{side}_image"):
+        raise SystemExit(f"{where}: a diagram side must not also carry an image.")
+
+    source = diagrams[0]
+    content_lines = [line.strip() for line in source.split("\n") if line.strip() and not line.strip().startswith("%%")]
+    if not content_lines or not content_lines[0].lower().startswith(MERMAID_HEADERS):
+        header = content_lines[0] if content_lines else "(empty)"
+        raise SystemExit(
+            f"{where}: unsupported Mermaid header '{header}' — it would render as code. "
+            "Use graph/flowchart, sequenceDiagram, stateDiagram-v2 or classDiagram, or draw an SVG image."
+        )
+    if len(content_lines) > MERMAID_MAX_LINES or len(source) > MERMAID_MAX_CHARS:
+        raise SystemExit(f"{where}: diagram exceeds {MERMAID_MAX_LINES} lines / {MERMAID_MAX_CHARS} characters.")
+    lowered = source.lower()
+    for token, reason in MERMAID_FORBIDDEN.items():
+        if any(line.strip().lower().startswith(token) for line in source.split("\n")) or (token == "%%{" and token in lowered):
+            raise SystemExit(f"{where}: remove '{token.strip()}' from the diagram — {reason}.")
+    if "<br" in lowered:
+        raise SystemExit(f"{where}: remove <br> from the diagram — keep labels to a few words.")
+
+    for note in mermaid_size_warnings(source):
+        warn(f"{where}: diagram may not fit a card: {note}. Split or simplify it.")
+
+
 def validate_markup(card: Dict, index: int, deck_name: str) -> None:
     for side in ("q", "a"):
         text = card.get(side)
         if not isinstance(text, str):
             continue
+
+        validate_mermaid(text, card, side, f"Card {index} in deck '{deck_name}' ({side})")
 
         for group in unhosted_spoken_hints(text):
             raise SystemExit(

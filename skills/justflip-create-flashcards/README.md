@@ -9,6 +9,7 @@ AI skill for creating **JustFlip** import files.
 - Produces `.flashcards.zip` bundles when cards reference images, audio, or PDFs.
 - Can transform CSV / TSV / pipe-delimited sources into the import format.
 - Can update existing `.flashcards` or `.flashcards.zip` files.
+- Draws card-sized Mermaid diagrams, and SVG figures converted to PNG, each as the whole card side.
 
 ## Install
 
@@ -47,10 +48,15 @@ Create a set of image/audio-based flashcards for beginner animals. Each card sho
 Create a bilingual English-German vocabulary deck for everyday travel phrases. Put English on the question side, German on the answer side, and include pronunciation hints where useful.
 ```
 
+```text
+Create flashcards explaining the TCP handshake and HTTP caching. Use small diagrams where the flow is the point.
+```
+
 ## References
 
 - `SKILL.md` — agent instructions
 - `reference.md` — format details
 - `interest_icons.md` — curated SF Symbols available for interest icons
 - `scripts/csv_to_flashcard.py` — delimited text → content JSON
-- `scripts/build_flashcard_package.py` — validate/package JSON into `.flashcards` or `.flashcards.zip`
+- `scripts/build_flashcard_package.py` — validate/package JSON into `.flashcards` or `.flashcards.zip` (also checks diagram sides and rejects SVG media)
+- `scripts/svg_to_png.sh` — render an SVG figure to a 1200 px PNG on a white plate

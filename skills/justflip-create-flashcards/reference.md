@@ -75,6 +75,8 @@ user’s existing choice is preserved on re-import.
 - `note`: optional author / AI comment, ignored by import
 - `q_image`, `q_audio`, `q_pdf`: question-side media filename
 - `a_image`, `a_audio`, `a_pdf`: answer-side media filename
+- `q_image_description`, `a_image_description`: text VoiceOver reads for that side's image
+- `q_image_license`, `a_image_license`: licence / attribution shown from the card's info button
 - `kind`: optional card kind — `"standard"` (default) or `"progressTracker"` (alias key: `type`)
 - `progress`: optional, progress trackers only — starting completion, 0–100 (a value ≤ 1 is read as a 0…1 fraction); omitted means 0
 
@@ -227,6 +229,27 @@ inline rules.
 - Presentation only: `plainText`, search, export and the speech projection are
   identical with or without a display block.
 
+## Mermaid diagrams
+
+A fenced block tagged `mermaid` renders as a diagram. It is stored as an ordinary
+code block, so older app versions show the source.
+
+- Rendered families: `graph`/`flowchart`, `sequenceDiagram`, `stateDiagram` /
+  `stateDiagram-v2`, `classDiagram`, `erDiagram`. The header is the first
+  non-comment line and is case-insensitive.
+- Anything else, a missing header, more than 60 lines or more than 2 000
+  characters renders as code.
+- A side containing a diagram must contain only that one fenced block.
+- Card-size limits and forbidden syntax: see SKILL.md → Diagrams.
+
+## Generated images
+
+- Images must be raster (PNG preferred, JPEG for photos). SVG is not displayed;
+  convert it first (`scripts/svg_to_png.sh`, which uses `rsvg-convert` or
+  ImageMagick and renders 1 200 px wide on a white plate).
+- A side whose text is empty and which has an image is laid out as a whole-side
+  picture that fills the card.
+
 ## ZIP layout
 
 ```text
@@ -240,7 +263,7 @@ deck-name.flashcards.zip
 Rules:
 
 - Media field values must be filenames, not paths.
-- Image files belong in `images/`.
+- Image files belong in `images/` (PNG or JPEG — never SVG).
 - Audio files belong in `audio/`.
 - PDF files belong in `pdfs/`.
 - Every referenced file must exist in the ZIP.
