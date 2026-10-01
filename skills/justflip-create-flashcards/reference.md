@@ -77,6 +77,7 @@ user’s existing choice is preserved on re-import.
 - `a_image`, `a_audio`, `a_pdf`: answer-side media filename
 - `q_image_description`, `a_image_description`: text VoiceOver reads for that side's image
 - `q_image_license`, `a_image_license`: licence / attribution shown from the card's info button
+- `magnifier`: optional Bool, default `true` — `false` hides the ZOOM action for this card's photos (e.g. when enlarging would give the answer away)
 - `kind`: optional card kind — `"standard"` (default) or `"progressTracker"` (alias key: `type`)
 - `progress`: optional, progress trackers only — starting completion, 0–100 (a value ≤ 1 is read as a 0…1 fraction); omitted means 0
 
@@ -249,6 +250,24 @@ code block, so older app versions show the source.
   ImageMagick and renders 1 200 px wide on a white plate).
 - A side whose text is empty and which has an image is laid out as a whole-side
   picture that fills the card.
+
+## Card layouts
+
+The app picks a side's layout from its content; there is no layout field.
+
+| Layout | Side content | How it renders |
+|---|---|---|
+| Text | text only | fitted text (`::: hero` / `::: center` for display text) |
+| Picture | image, empty text | the image fills the whole card |
+| Captioned picture | image + one short line | the line on top, the image filling the rest of the card |
+| Text + picture | image + longer text | text first, the image squeezed into what is left — **avoid** |
+| Diagram | one ```` ```mermaid ```` block | the diagram fills the card |
+
+Every side has a "…" button that opens its full content; a side with a large
+image (≥ 512 px on its longest edge) or a diagram also gets a ZOOM button, and
+tapping a picture in the full-content sheet opens it full screen. Zooming is a
+fallback, not a layout: author so the card reads without it — Picture or
+Captioned picture, with the explanation on the other side.
 
 ## ZIP layout
 

@@ -69,7 +69,8 @@ Read [reference.md](reference.md) and [interest_icons.md](interest_icons.md) bef
 - Use simple Markdown only.
 - Use inline code or fenced code blocks for technical snippets when it improves readability. Always tag fenced blocks with the language so the app can syntax-highlight them.
 - Keep answers concise enough to read comfortably on mobile.
-- Do not put more than one large image on a card side. If combining text with a large image, keep the text brief enough for both to fit comfortably together. If the text is substantial, put the image and explanation on separate sides or split the material into multiple cards.
+- A side with an image carries at most **one short line** of text (a caption or the question, about ≤ 40 characters, no line breaks) — or no text at all. The app lays that out as a title with the picture filling the rest of the card, so labels inside the image stay readable. Put explanations on the other side (or in `note`); never pair a paragraph with a picture on the same side. Layouts: [reference.md → Card layouts](reference.md#card-layouts).
+- Do not put more than one large image on a card side.
 - A side holding a Mermaid diagram or a generated (SVG → PNG) image holds nothing else — no heading, caption, question text or note. Put the question on the other side.
 - For music terminology, use `♯` and `♭`, not `#` or `b`.
 
